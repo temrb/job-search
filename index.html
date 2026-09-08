@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Build a shareable Google search URL that finds open, full-time LinkedIn job posts. All state lives in the page URL.">
+<title>LinkedIn Jobs via Google — Query Builder</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+:root { color-scheme: light; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  color: #1a1a1a;
+  background: #fff;
+}
+.container { max-width: 40rem; margin: 0 auto; padding: 1rem 1rem 2rem; }
+header h1 { font-size: 1.4rem; margin: 0 0 0.25rem; }
+.sub { margin: 0 0 1.25rem; color: #444; }
+form { display: grid; gap: 1rem; margin-bottom: 0.5rem; }
+.field { display: grid; gap: 0.35rem; }
+label { font-weight: 600; }
+.hint { display: block; font-weight: 400; font-size: 0.9rem; color: #555; }
+input[type="text"], select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.7rem;
+  font-size: 1rem;
+  border: 1px solid #767676;
+  border-radius: 0.4rem;
+  background: #fff;
+  color: inherit;
+}
+:focus-visible { outline: 2px solid #0b5fff; outline-offset: 2px; }
+.check { display: flex; gap: 0.6rem; align-items: flex-start; font-weight: 600; cursor: pointer; }
+.check input { width: 1.4rem; height: 1.4rem; margin-top: 0.15rem; flex: none; accent-color: #0b5fff; }
+h2 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; }
+output, .linkbox {
+  display: block;
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+}
+output code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.linkbox a {
+  color: #0b5fff;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  font-size: 0.9rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  line-clamp: 4;
+  overflow: hidden;
+}
+#googleHeading { scroll-margin-top: 1rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1rem; }
+.btn {
+  display: inline-block;
+  min-height: 2.75rem;
+  padding: 0.7rem 1.1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+  border-radius: 0.45rem;
+  border: 1px solid #0b5fff;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+}
+.btn-primary { background: #0b5fff; color: #fff; }
+.btn-secondary { background: #fff; color: #0b5fff; }
+#copyStatus { min-height: 1.5em; margin: 0.6rem 0 0; color: #1a7f37; font-weight: 600; }
+footer { margin-top: 2rem; font-size: 0.9rem; color: #555; border-top: 1px solid #e0e0e0; padding-top: 1rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>LinkedIn Jobs via Google</h1>
+    <p class="sub">Tune the filters to build a shareable Google search for open, full-time LinkedIn job posts. The builder state lives in this page&rsquo;s URL.</p>
+  </header>
+
+  <main>
+    <form id="builder" action="#" method="get">
+      <div class="field">
+        <label for="range">Date range</label>
+        <select id="range" name="range">
+          <option value="3d">Last 3 days</option>
+          <option value="7d" selected>Last week</option>
+          <option value="30d">Last 30 days</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="loc">Location</label>
+        <select id="loc" name="loc">
+          <option value="United States">United States</option>
+          <option value="New York, NY">New York, NY</option>
+          <option value="San Francisco, CA">San Francisco, CA</option>
+          <option value="Austin, TX">Austin, TX</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="custom">Custom location <span class="hint">Optional — when filled in, this overrides the location above.</span></label>
+        <input type="text" id="custom" name="custom" placeholder="e.g. Denver, CO" autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="field">
+        <label class="check">
+          <input type="checkbox" id="hiring" name="hiring" value="1">
+          <span>Only posts with a hiring-team contact <span class="hint">Appends &ldquo;message the job poster&rdquo; to the query.</span></span>
+        </label>
+      </div>
+
+      <div class="field">
+        <label for="title">Job title keyword <span class="hint">Optional — a single keyword, lowercased into an intitle: clause.</span></label>
+        <input type="text" id="title" name="title" placeholder="e.g. support engineer" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+      </div>
+    </form>
+
+    <noscript><p>This builder needs JavaScript to assemble the query.</p></noscript>
+
+    <section aria-label="Built query output">
+      <h2>Query preview</h2>
+      <output><code id="queryPreview"></code></output>
+
+      <h2 id="googleHeading" tabindex="-1">Google search link</h2>
+      <p class="linkbox"><a id="googleLink" href="#" target="_blank" rel="noopener"></a></p>
+
+      <div class="actions">
+        <a class="btn btn-primary" id="openBtn" href="#" target="_blank" rel="noopener">Open Google search</a>
+        <button class="btn btn-secondary" id="copyGoogle" type="button">Copy Google URL</button>
+        <button class="btn btn-secondary" id="copyBuilder" type="button">Copy builder link</button>
+      </div>
+      <p id="copyStatus" role="status"></p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Bookmark or share this page&rsquo;s URL to keep the filters. No tracking, no storage, no network calls — the page works offline and from a local file.</p>
+  </footer>
+</div>
+
+<script>
+'use strict';
+
+/* ---- Constants (spec §2, §5, §6) ---- */
+var GOOGLE_BASE = 'https://www.google.com/search?udm=14&q=';
+var SITE_CLAUSE = 'site:https://www.linkedin.com/jobs/view/*';
+var FULLTIME_CLAUSE = '"Full Time"';
+var CLOSED_CLAUSE = '-"No longer accepting applications"';
+var HIRING_PHRASE = '"message the job poster"';
+var NEGATION_KEYWORDS = ['intern', 'internship', 'lead', 'senior', 'sr', 'staff',
+  'head', 'principal', 'group', 'director', 'chief', 'manager'];
+var RANGE_OPTIONS = ['3d', '7d', '30d'];
+var LOC_OPTIONS = ['United States', 'New York, NY', 'San Francisco, CA', 'Austin, TX'];
+
+/* ---- Pure builder logic (no DOM; safe to run in Node for tests) ---- */
+
+function normalizeRange(value) {
+  return RANGE_OPTIONS.indexOf(value) !== -1 ? value : '7d';
+}
+
+function normalizeLoc(value) {
+  return LOC_OPTIONS.indexOf(value) !== -1 ? value : 'United States';
+}
+
+/* Parse builder state from a query string (e.g. window.location.search). */
+function parseState(search) {
+  var params = new URLSearchParams(search || '');
+  return {
+    range: normalizeRange(params.get('range')),
+    loc: normalizeLoc(params.get('loc')),
+    custom: (params.get('custom') || '').trim(),
+    hiring: params.get('hiring') === '1',
+    title: (params.get('title') || '').trim()
+  };
+}
+
+/* Serialize builder state to a query string (omits empty optionals). */
+function serializeState(state) {
+  var params = new URLSearchParams();
+  params.set('range', normalizeRange(state.range));
+  params.set('loc', normalizeLoc(state.loc));
+  var custom = (state.custom || '').trim();
+  if (custom) params.set('custom', custom);
+  params.set('hiring', state.hiring ? '1' : '0');
+  var title = (state.title || '').trim();
+  if (title) params.set('title', title);
+  return params.toString();
+}
+
+/* Zero-padded local YYYY-MM-DD (local parts, never UTC). */
+function localISODate(date) {
+  var m = String(date.getMonth() + 1).padStart(2, '0');
+  var d = String(date.getDate()).padStart(2, '0');
+  return date.getFullYear() + '-' + m + '-' + d;
+}
+
+/* today - N days per range; invalid range falls back to 7d. */
+function computeAfter(range, today) {
+  var days = range === '3d' ? 3 : range === '30d' ? 30 : 7;
+  var base = today || new Date();
+  var shifted = new Date(base.getFullYear(), base.getMonth(), base.getDate() - days);
+  return localISODate(shifted);
+}
+
+/* Assemble q per the §3 template order. state.today is an optional Date override. */
+function buildQuery(state, today) {
+  var parts = [SITE_CLAUSE, FULLTIME_CLAUSE];
+  var custom = (state.custom || '').trim().replace(/"/g, '');
+  var location = (custom || (state.loc || '').trim() || 'United States').replace(/"/g, '');
+  parts.push('("jobs in" "' + location + '")');
+  var target = (state.title || '').trim().toLowerCase().replace(/"/g, '');
+  if (target) parts.push('intitle:"' + target + '"');
+  parts.push(CLOSED_CLAUSE);
+  parts.push('after:' + computeAfter(state.range, today || state.today));
+  var suppressManager = target.indexOf('manager') !== -1;
+  NEGATION_KEYWORDS.forEach(function (keyword) {
+    if (keyword === 'manager' && suppressManager) return;
+    parts.push('-intitle:"' + keyword + '"');
+  });
+  if (state.hiring) parts.push(HIRING_PHRASE);
+  return parts.join(' ');
+}
+
+/* Encode the assembled query exactly once into the output endpoint. */
+function buildGoogleUrl(query) {
+  return GOOGLE_BASE + encodeURIComponent(query);
+}
+
+/* ---- Browser-only DOM wiring ---- */
+if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+}
+
+function init() {
+  var rangeEl = document.getElementById('range');
+  var locEl = document.getElementById('loc');
+  var customEl = document.getElementById('custom');
+  var hiringEl = document.getElementById('hiring');
+  var titleEl = document.getElementById('title');
+  var previewEl = document.getElementById('queryPreview');
+  var googleLinkEl = document.getElementById('googleLink');
+  var openBtn = document.getElementById('openBtn');
+  var copyGoogleBtn = document.getElementById('copyGoogle');
+  var copyBuilderBtn = document.getElementById('copyBuilder');
+  var statusEl = document.getElementById('copyStatus');
+  var form = document.getElementById('builder');
+
+  var initial = parseState(window.location.search);
+  rangeEl.value = initial.range;
+  locEl.value = initial.loc;
+  customEl.value = initial.custom;
+  hiringEl.checked = initial.hiring;
+  titleEl.value = initial.title;
+
+  function readControls() {
+    return {
+      range: rangeEl.value,
+      loc: locEl.value,
+      custom: customEl.value,
+      hiring: hiringEl.checked,
+      title: titleEl.value
+    };
+  }
+
+  function builderUrl(state) {
+    return window.location.href.split('#')[0].split('?')[0] +
+      '?' + serializeState(state);
+  }
+
+  function render() {
+    var state = readControls();
+    var query = buildQuery(state);
+    previewEl.textContent = query;
+    var url = buildGoogleUrl(query);
+    googleLinkEl.href = url;
+    googleLinkEl.textContent = url;
+    googleLinkEl.title = url;
+    openBtn.href = url;
+    try {
+      window.history.replaceState(null, '', builderUrl(state));
+    } catch (err) { /* file:// quirks must never break output rebuild */ }
+  }
+
+  function say(message, ok) {
+    statusEl.textContent = message;
+    statusEl.style.color = ok === false ? '#b42318' : '#1a7f37';
+  }
+
+  form.addEventListener('input', render);
+  form.addEventListener('change', render);
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    render();
+  });
+
+  titleEl.addEventListener('keydown', function (event) {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    render();
+    var target = document.getElementById('googleHeading');
+    if (!target) return;
+    var reduced = window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+    try {
+      target.focus({ preventScroll: true });
+    } catch (err) {
+      try { target.focus(); } catch (ignored) { /* focus is best-effort */ }
+    }
+  });
+
+  copyGoogleBtn.addEventListener('click', function () {
+    copyText(googleLinkEl.href).then(function (ok) {
+      say(ok ? 'Google URL copied.' : 'Copy failed — long-press the link to copy it manually.', ok);
+    });
+  });
+  copyBuilderBtn.addEventListener('click', function () {
+    copyText(builderUrl(readControls())).then(function (ok) {
+      say(ok ? 'Builder link copied.' : 'Copy failed — copy the address bar URL manually.', ok);
+    });
+  });
+
+  render();
+}
+
+/* Clipboard with fallback for non-secure (e.g. some file://) contexts. */
+function copyText(text) {
+  if (typeof navigator !== 'undefined' && navigator.clipboard &&
+      typeof navigator.clipboard.writeText === 'function') {
+    return navigator.clipboard.writeText(text).then(
+      function () { return true; },
+      function () { return fallbackCopy(text); }
+    );
+  }
+  return Promise.resolve(fallbackCopy(text));
+}
+
+function fallbackCopy(text) {
+  try {
+    if (typeof document === 'undefined') return false;
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    area.setSelectionRange(0, area.value.length);
+    var ok = document.execCommand('copy');
+    document.body.removeChild(area);
+    return ok;
+  } catch (err) {
+    return false;
+  }
+}
+</script>
+</body>
+</html>
