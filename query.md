@@ -33,7 +33,7 @@ site:https://www.linkedin.com/jobs/view/* "Full Time" -"No longer accepting appl
 Assemble `q` in this exact order:
 
 ```text
-site:https://www.linkedin.com/jobs/view/* "Full Time" ("jobs in" "{LOCATION}") [intitle:"{TARGET}"] -"No longer accepting applications" after:{YYYY-MM-DD} {NEGATIONS} ["message the job poster"]
+site:https://www.linkedin.com/jobs/view/* "Full Time" ("jobs in" "{LOCATION}") [intitle:"{TARGET}"] -"No longer accepting applications" after:{YYYY-MM-DD} ["message the job poster"] {NEGATIONS}
 ```
 
 - `[]` = conditional, see §4.
@@ -44,6 +44,10 @@ Full example — target `support engineer`, location `New York, NY`, range `last
 ```text
 site:https://www.linkedin.com/jobs/view/* "Full Time" ("jobs in" "New York, NY") intitle:"support engineer" -"No longer accepting applications" after:2026-09-01 -intitle:"intern" -intitle:"internship" -intitle:"lead" -intitle:"senior" -intitle:"sr" -intitle:"staff" -intitle:"head" -intitle:"principal" -intitle:"group" -intitle:"director" -intitle:"chief" -intitle:"manager"
 ```
+
+With `hiring=1`, `"message the job poster"` is inserted immediately after
+`after:2026-09-01` and before the negations; with `hiring=0` the string
+above is unchanged.
 
 ## 4. Editable Filters
 
@@ -89,7 +93,7 @@ Rules:
 UI: boolean toggle / checkbox, default `false`.
 
 - `false` → emit nothing.
-- `true` → append exact phrase at the end of the query:
+- `true` → emit exact phrase immediately after `after:`, before `{NEGATIONS}`:
 
 ```text
 "message the job poster"
@@ -113,22 +117,37 @@ intitle:"{keyword}"
 - Example: `Support Engineer` → `intitle:"support engineer"`.
 - Singular only. Never accept a list — one title per query to avoid over-constraining Google.
 
-## 5. Default Negations — Always On (with 1 Smart Exception)
+## 5. Default Negations — Always On (with Dynamic Suppression)
 
-Append in the background on every query, after `after:`:
+Append in the background on every query, last — after `after:` and after
+`["message the job poster"]`:
 
 ```text
 -intitle:"intern" -intitle:"internship" -intitle:"lead" -intitle:"senior" -intitle:"sr" -intitle:"staff" -intitle:"head" -intitle:"principal" -intitle:"group" -intitle:"director" -intitle:"chief" -intitle:"manager"
 ```
 
-### Smart `manager` rule
+### Dynamic suppression with alias groups
 
-If `{TARGET}` contains the word `manager` as a substring (case-insensitive),
-omit `-intitle:"manager"` from the negation list to avoid self-cancellation.
+Negations are organized into order-preserving alias groups; emission order
+matches the flat list above minus suppressed terms:
 
-- `Product Manager` → drop `-intitle:"manager"`, keep the other 11 negations.
+```text
+[intern, internship] [lead] [senior, sr] [staff] [head] [principal] [group] [director] [chief] [manager]
+```
+
+Tokenize `{TARGET}` by lowercasing, stripping `"`, splitting on
+`[^a-z0-9]+`, and dropping empties. Suppress a whole group if any title
+token exactly equals any term in the group (word-token match, not
+substring; no stemming needed). Suppression is bidirectional within a
+group: either alias suppresses the whole group.
+
+- `Product Manager` → tokens `product, manager` → drop `-intitle:"manager"`, keep the other 11 negations.
+- `Senior Operations` → tokens `senior, operations` → drop `-intitle:"senior"` and `-intitle:"sr"` (10 remain).
+- `Sr Analyst` → tokens `sr, analyst` → drop `senior` + `sr`, same as above (bidirectional alias).
+- `Intern` or `Internship` → drop `-intitle:"intern"` and `-intitle:"internship"`.
+- Substring traps do NOT suppress: `Leader` keeps `-intitle:"lead"`, `Headhunter` keeps `-intitle:"head"`, `Managerial` keeps `-intitle:"manager"`.
+- Empty title → keep all 12 negations.
 - `Support Engineer` → keep all 12 negations.
-- Match on substring is sufficient; no stemming needed.
 
 Apply the same suppression pattern if future target/negation pairs overlap.
 
@@ -172,6 +191,6 @@ Example builder link:
 2. Resolve location: `custom` if non-empty, else `loc`.
 3. Add `intitle:"{title}"` if `title` is non-empty.
 4. Add computed `after:` from `range` + today.
-5. Add negation list, applying the `manager` rule in §5.
-6. Append `"message the job poster"` if `hiring=1`.
+5. Add `"message the job poster"` if `hiring=1`.
+6. Add negation list, applying the alias-group suppression in §5.
 7. URL-encode the full string and append to `https://www.google.com/search?udm=14&q=`.

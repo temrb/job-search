@@ -119,7 +119,7 @@ footer { margin-top: 2rem; font-size: 0.9rem; color: #555; border-top: 1px solid
       <div class="field">
         <label class="check">
           <input type="checkbox" id="hiring" name="hiring" value="1">
-          <span>Hiring-team contact <span class="hint">Optional — appends &ldquo;message the job poster&rdquo; to the query.</span></span>
+          <span>Hiring-team contact <span class="hint">Optional — adds &ldquo;message the job poster&rdquo; after the date.</span></span>
         </label>
       </div>
 
@@ -166,8 +166,8 @@ var SITE_CLAUSE = 'site:https://www.linkedin.com/jobs/view/*';
 var FULLTIME_CLAUSE = '"Full Time"';
 var CLOSED_CLAUSE = '-"No longer accepting applications"';
 var HIRING_PHRASE = '"message the job poster"';
-var NEGATION_KEYWORDS = ['intern', 'internship', 'lead', 'senior', 'sr', 'staff',
-  'head', 'principal', 'group', 'director', 'chief', 'manager'];
+var NEGATION_GROUPS = [['intern', 'internship'], ['lead'], ['senior', 'sr'], ['staff'],
+  ['head'], ['principal'], ['group'], ['director'], ['chief'], ['manager']];
 var RANGE_OPTIONS = ['3d', '7d', '30d'];
 var LOC_OPTIONS = ['United States', 'New York, NY', 'San Francisco, CA', 'Austin, TX'];
 
@@ -239,6 +239,26 @@ function computeAfter(range, today) {
   return localISODate(shifted);
 }
 
+/* Split a title target into lowercase alphanumeric tokens for negation matching. */
+function tokenizeTitle(target) {
+  return (target || '').toLowerCase().replace(/"/g, '').split(/[^a-z0-9]+/)
+    .filter(function (t) { return !!t; });
+}
+
+/* Flat negation terms whose alias group has no token intersection with target.
+   Emission order matches the grouped table order minus suppressed groups. */
+function getActiveNegations(target) {
+  var tokens = {};
+  tokenizeTitle(target).forEach(function (t) { tokens[t] = true; });
+  var out = [];
+  NEGATION_GROUPS.forEach(function (group) {
+    var suppressed = group.some(function (term) { return !!tokens[term]; });
+    if (suppressed) return;
+    group.forEach(function (term) { out.push(term); });
+  });
+  return out;
+}
+
 /* Assemble q per the §3 template order. state.today is an optional Date override. */
 function buildQuery(state, today) {
   var parts = [SITE_CLAUSE, FULLTIME_CLAUSE];
@@ -255,12 +275,10 @@ function buildQuery(state, today) {
   }
   parts.push(CLOSED_CLAUSE);
   parts.push('after:' + computeAfter(state.range, today || state.today));
-  var suppressManager = target.indexOf('manager') !== -1;
-  NEGATION_KEYWORDS.forEach(function (keyword) {
-    if (keyword === 'manager' && suppressManager) return;
+  if (state.hiring) parts.push(HIRING_PHRASE);
+  getActiveNegations(target).forEach(function (keyword) {
     parts.push('-intitle:"' + keyword + '"');
   });
-  if (state.hiring) parts.push(HIRING_PHRASE);
   return parts.join(' ');
 }
 
