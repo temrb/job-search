@@ -119,13 +119,18 @@ footer { margin-top: 2rem; font-size: 0.9rem; color: #555; border-top: 1px solid
       <div class="field">
         <label class="check">
           <input type="checkbox" id="hiring" name="hiring" value="1">
-          <span>Only posts with a hiring-team contact <span class="hint">Appends &ldquo;message the job poster&rdquo; to the query.</span></span>
+          <span>Hiring-team contact <span class="hint">Optional — appends &ldquo;message the job poster&rdquo; to the query.</span></span>
         </label>
       </div>
 
       <div class="field">
-        <label for="title">Job title keyword <span class="hint">Optional — a single keyword, lowercased into an intitle: clause.</span></label>
+        <label for="title">Job title keywords <span class="hint">Optional — a single keyword, lowercased into an <code>intitle:</code> clause.</span></label>
         <input type="text" id="title" name="title" placeholder="e.g. support engineer" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+      </div>
+
+      <div class="field">
+        <label for="body">Body keywords <span class="hint">Optional — comma-separated phrases, lowercased into a quoted OR group.</span></label>
+        <input type="text" id="body" name="body" placeholder="e.g. html, javascript, css" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
       </div>
     </form>
 
@@ -176,6 +181,21 @@ function normalizeLoc(value) {
   return LOC_OPTIONS.indexOf(value) !== -1 ? value : 'United States';
 }
 
+/* Comma is the sole delimiter: split on ',', then trim, strip double-quotes,
+   collapse inner whitespace, lowercase, drop empties, dedupe (order kept). */
+function parseBodyList(value) {
+  var seen = {};
+  var out = [];
+  (value || '').split(',').forEach(function (raw) {
+    var phrase = raw.replace(/"/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+    if (!phrase) return;
+    if (seen[phrase]) return;
+    seen[phrase] = true;
+    out.push(phrase);
+  });
+  return out;
+}
+
 /* Parse builder state from a query string (e.g. window.location.search). */
 function parseState(search) {
   var params = new URLSearchParams(search || '');
@@ -184,7 +204,8 @@ function parseState(search) {
     loc: normalizeLoc(params.get('loc')),
     custom: (params.get('custom') || '').trim(),
     hiring: params.get('hiring') === '1',
-    title: (params.get('title') || '').trim()
+    title: (params.get('title') || '').trim(),
+    body: (params.get('body') || '').trim()
   };
 }
 
@@ -198,6 +219,8 @@ function serializeState(state) {
   params.set('hiring', state.hiring ? '1' : '0');
   var title = (state.title || '').trim();
   if (title) params.set('title', title);
+  var body = parseBodyList(state.body).join(', ');
+  if (body) params.set('body', body);
   return params.toString();
 }
 
@@ -224,6 +247,12 @@ function buildQuery(state, today) {
   parts.push('("jobs in" "' + location + '")');
   var target = (state.title || '').trim().toLowerCase().replace(/"/g, '');
   if (target) parts.push('intitle:"' + target + '"');
+  var bodyPhrases = parseBodyList(state.body);
+  if (bodyPhrases.length === 1) {
+    parts.push('"' + bodyPhrases[0] + '"');
+  } else if (bodyPhrases.length > 1) {
+    parts.push('(' + bodyPhrases.map(function (p) { return '"' + p + '"'; }).join(' OR ') + ')');
+  }
   parts.push(CLOSED_CLAUSE);
   parts.push('after:' + computeAfter(state.range, today || state.today));
   var suppressManager = target.indexOf('manager') !== -1;
@@ -255,6 +284,7 @@ function init() {
   var customEl = document.getElementById('custom');
   var hiringEl = document.getElementById('hiring');
   var titleEl = document.getElementById('title');
+  var bodyEl = document.getElementById('body');
   var previewEl = document.getElementById('queryPreview');
   var googleLinkEl = document.getElementById('googleLink');
   var openBtn = document.getElementById('openBtn');
@@ -269,6 +299,7 @@ function init() {
   customEl.value = initial.custom;
   hiringEl.checked = initial.hiring;
   titleEl.value = initial.title;
+  bodyEl.value = initial.body;
 
   function readControls() {
     return {
@@ -276,7 +307,8 @@ function init() {
       loc: locEl.value,
       custom: customEl.value,
       hiring: hiringEl.checked,
-      title: titleEl.value
+      title: titleEl.value,
+      body: bodyEl.value
     };
   }
 
@@ -311,20 +343,22 @@ function init() {
     render();
   });
 
-  titleEl.addEventListener('keydown', function (event) {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    render();
-    var target = document.getElementById('googleHeading');
-    if (!target) return;
-    var reduced = window.matchMedia &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
-    try {
-      target.focus({ preventScroll: true });
-    } catch (err) {
-      try { target.focus(); } catch (ignored) { /* focus is best-effort */ }
-    }
+  [titleEl, bodyEl].forEach(function (el) {
+    el.addEventListener('keydown', function (event) {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      render();
+      var target = document.getElementById('googleHeading');
+      if (!target) return;
+      var reduced = window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+      try {
+        target.focus({ preventScroll: true });
+      } catch (err) {
+        try { target.focus(); } catch (ignored) { /* focus is best-effort */ }
+      }
+    });
   });
 
   copyGoogleBtn.addEventListener('click', function () {
