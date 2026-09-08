@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="system">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,52 +7,89 @@
 <title>LinkedIn Jobs via Google — Query Builder</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; }
-:root { color-scheme: light; }
+:root {
+  color-scheme: light dark;
+  --bg: #F8F7F4;
+  --fg: #3A3733;
+  --muted: #6B6660;
+  --surface: #FFFFFF;
+  --border: #D6D1C7;
+}
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg: #F8F7F4;
+  --fg: #3A3733;
+  --muted: #6B6660;
+  --surface: #FFFFFF;
+  --border: #D6D1C7;
+}
+html[data-theme="dark"] {
+  --bg: #1C1B1A;
+  --fg: #E3DDD3;
+  --muted: #A8A29E;
+  --surface: #262524;
+  --border: #44403C;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"], html:not([data-theme]) {
+    --bg: #1C1B1A;
+    --fg: #E3DDD3;
+    --muted: #A8A29E;
+    --surface: #262524;
+    --border: #44403C;
+  }
+}
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.5;
-  color: #1a1a1a;
-  background: #fff;
+  color: var(--fg);
+  background: var(--bg);
 }
 .container { max-width: 40rem; margin: 0 auto; padding: 1rem 1rem 2rem; }
 header h1 { font-size: 1.4rem; margin: 0 0 0.25rem; }
-.sub { margin: 0 0 1.25rem; color: #444; }
+.sub { margin: 0 0 1rem; color: var(--muted); }
+.theme { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; align-items: center; border: 1px solid var(--border); border-radius: 0.4rem; padding: 0.5rem 0.75rem; margin: 0 0 1.25rem; }
+.theme legend { font-weight: 600; padding: 0 0.25rem; }
+.theme label { display: flex; gap: 0.4rem; align-items: center; font-weight: 400; cursor: pointer; }
+.theme input { width: 1.2rem; height: 1.2rem; margin: 0; flex: none; accent-color: var(--fg); }
 form { display: grid; gap: 1rem; margin-bottom: 0.5rem; }
 .field { display: grid; gap: 0.35rem; }
 label { font-weight: 600; }
-.hint { display: block; font-weight: 400; font-size: 0.9rem; color: #555; }
+.hint { display: block; font-weight: 400; font-size: 0.9rem; color: var(--muted); }
 input[type="text"], select {
   width: 100%;
   min-height: 2.75rem;
   padding: 0.55rem 0.7rem;
   font-size: 1rem;
-  border: 1px solid #767676;
+  border: 1px solid var(--border);
   border-radius: 0.4rem;
-  background: #fff;
+  background: var(--surface);
   color: inherit;
 }
-:focus-visible { outline: 2px solid #0b5fff; outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 .check { display: flex; gap: 0.6rem; align-items: flex-start; font-weight: 600; cursor: pointer; }
-.check input { width: 1.4rem; height: 1.4rem; margin-top: 0.15rem; flex: none; accent-color: #0b5fff; }
+.check input { width: 1.4rem; height: 1.4rem; margin-top: 0.15rem; flex: none; accent-color: var(--fg); }
 h2 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; }
-output, .linkbox {
+#queryPreview, .linkbox {
   display: block;
-  background: #f6f8fa;
-  border: 1px solid #d0d7de;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 0.5rem;
   padding: 0.75rem;
   overflow-wrap: anywhere;
   overflow: hidden;
+  color: var(--fg);
 }
-output code {
+#queryPreview {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.85rem;
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 .linkbox a {
-  color: #0b5fff;
+  color: var(--fg);
+  text-decoration: underline;
   overflow-wrap: anywhere;
   word-break: break-all;
   font-size: 0.9rem;
@@ -72,15 +109,15 @@ output code {
   font-weight: 600;
   line-height: 1.35;
   border-radius: 0.45rem;
-  border: 1px solid #0b5fff;
+  border: 1px solid var(--border);
   cursor: pointer;
   text-decoration: none;
   text-align: center;
 }
-.btn-primary { background: #0b5fff; color: #fff; }
-.btn-secondary { background: #fff; color: #0b5fff; }
-#copyStatus { min-height: 1.5em; margin: 0.6rem 0 0; color: #1a7f37; font-weight: 600; }
-footer { margin-top: 2rem; font-size: 0.9rem; color: #555; border-top: 1px solid #e0e0e0; padding-top: 1rem; }
+.btn-primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.btn-secondary { background: var(--surface); color: var(--fg); }
+#copyStatus { min-height: 1.5em; margin: 0.6rem 0 0; color: var(--fg); font-weight: 600; }
+footer { margin-top: 2rem; font-size: 0.9rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 1rem; }
 </style>
 </head>
 <body>
@@ -88,6 +125,12 @@ footer { margin-top: 2rem; font-size: 0.9rem; color: #555; border-top: 1px solid
   <header>
     <h1>LinkedIn Jobs via Google</h1>
     <p class="sub">Tune the filters to build a shareable Google search for open, full-time LinkedIn job posts. The builder state lives in this page&rsquo;s URL.</p>
+    <fieldset class="theme">
+      <legend>Theme</legend>
+      <label><input type="radio" name="theme" value="light"> Light</label>
+      <label><input type="radio" name="theme" value="dark"> Dark</label>
+      <label><input type="radio" name="theme" value="system" checked> System</label>
+    </fieldset>
   </header>
 
   <main>
@@ -138,7 +181,7 @@ footer { margin-top: 2rem; font-size: 0.9rem; color: #555; border-top: 1px solid
 
     <section aria-label="Built query output">
       <h2>Query preview</h2>
-      <output><code id="queryPreview"></code></output>
+      <code id="queryPreview"></code>
 
       <h2 id="googleHeading" tabindex="-1">Google search link</h2>
       <p class="linkbox"><a id="googleLink" href="#" target="_blank" rel="noopener"></a></p>
@@ -310,6 +353,18 @@ function init() {
   var copyBuilderBtn = document.getElementById('copyBuilder');
   var statusEl = document.getElementById('copyStatus');
   var form = document.getElementById('builder');
+  var themeRadios = document.querySelectorAll('input[name="theme"]');
+
+  /* Theme is in-memory only (default System); System mode follows the OS
+     via the prefers-color-scheme media query, so no listeners are needed. */
+  function applyTheme(value) {
+    var mode = (value === 'light' || value === 'dark') ? value : 'system';
+    document.documentElement.setAttribute('data-theme', mode);
+  }
+  Array.prototype.forEach.call(themeRadios, function (radio) {
+    radio.addEventListener('change', function () { applyTheme(radio.value); });
+  });
+  applyTheme('system');
 
   var initial = parseState(window.location.search);
   rangeEl.value = initial.range;
@@ -349,9 +404,8 @@ function init() {
     } catch (err) { /* file:// quirks must never break output rebuild */ }
   }
 
-  function say(message, ok) {
+  function say(message) {
     statusEl.textContent = message;
-    statusEl.style.color = ok === false ? '#b42318' : '#1a7f37';
   }
 
   form.addEventListener('input', render);
@@ -381,12 +435,12 @@ function init() {
 
   copyGoogleBtn.addEventListener('click', function () {
     copyText(googleLinkEl.href).then(function (ok) {
-      say(ok ? 'Google URL copied.' : 'Copy failed — long-press the link to copy it manually.', ok);
+      say(ok ? 'Google URL copied.' : 'Copy failed — long-press the link to copy it manually.');
     });
   });
   copyBuilderBtn.addEventListener('click', function () {
     copyText(builderUrl(readControls())).then(function (ok) {
-      say(ok ? 'Builder link copied.' : 'Copy failed — copy the address bar URL manually.', ok);
+      say(ok ? 'Builder link copied.' : 'Copy failed — copy the address bar URL manually.');
     });
   });
 
